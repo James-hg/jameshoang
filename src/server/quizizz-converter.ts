@@ -1,37 +1,63 @@
-const csvSeparator = "|";
+import * as XLSX from "xlsx";
+
 const csvFields = [
-    "Question Text",
-    "Question Type",
-    "Option 1",
-    "Option 2",
-    "Option 3",
-    "Option 4",
+    "Question",
+    "Type",
+    "Option A",
+    "Option B",
+    "Option C",
+    "Option D",
     "Correct Answer",
-    "Time in seconds",
-    "Image Link",
+    "Points",
+    "Time",
 ];
 
-let outputName = "";
-
-export default function convertToCSV(content: string[], fileName: string) {
-    // Find the correct answers in the paragraphs
+export default function convertToExcel(content: string[], fileName: string) {
     let answers = findCorrectAnswers(content);
 
-    // STEP 3: Build the CSV row
-    let csvData = buildCSVRow(content, answers);
+    const excelData = buildExcelData(content, answers);
 
-    // STEP 4: Clean the data
-    let cleanedData = cleanData(csvData);
+    const outputName = fileName.replace(".docx", ".xlsx");
 
-    outputName = fileName.replace(".docx", ".csv");
+    // Create a new workbook with a worksheet
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.aoa_to_sheet(excelData);
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Questions");
 
-    // STEP 5: Download the CSV file
-    downloadCSV(cleanedData);
+    // Save the workbook
+    XLSX.writeFile(workbook, outputName);
 }
 
-interface Question {
-    options: string[];
-    correctAnswer: string;
+function buildExcelData(paragraphs: string[], answers: string[]): string[][] {
+    let excelData: string[][] = [[...csvFields]];
+
+    let csvRow: string[] = ["", "Multiple Choice", "", "", "", "", "", "900", ""];
+
+    let count = 0;
+    for (let paragraph of paragraphs) {
+        // remove the <strong> tag
+        let text = paragraph.replace(/<[^>]*>/g, "");
+        text = removeExtraSpaces(text);
+
+        if (text.startsWith("Câu ")) {
+            csvRow[0] = text;
+        } else if (text.startsWith("A.")) {
+            csvRow[2] = text;
+        } else if (text.startsWith("B.")) {
+            csvRow[3] = text;
+        } else if (text.startsWith("C.")) {
+            csvRow[4] = text;
+        } else if (text.startsWith("D.")) {
+            csvRow[5] = text;
+
+            csvRow[6] = answers[count];
+            count++;
+            excelData.push([...csvRow]);
+            csvRow = ["", "Multiple Choice", "", "", "", "", "", "900", ""];
+        }
+    }
+
+    return excelData;
 }
 
 // Find the correct answers in the paragraphs, which are bolded.
@@ -56,52 +82,6 @@ function findCorrectAnswers(paragraphs: string[]): string[] {
     return answers;
 }
 
-function cleanCSVRow() {
-    return {
-        questionText: "",
-        questionType: "Multiple Choice",
-        option1: "",
-        option2: "",
-        option3: "",
-        option4: "",
-        correctAnswer: "",
-        timeInSeconds: "900",
-        imageLink: "",
-    };
-}
-
-function buildCSVRow(paragraphs: string[], answers: string[]): string {
-    let finalCSV = "";
-
-    let csvRow = cleanCSVRow();
-
-    let count = 0;
-    for (let i = 0; i < paragraphs.length; i++) {
-        // remove the <strong> tag
-        let text = paragraphs[i].replace(/<[^>]*>/g, "");
-        text = removeExtraSpaces(text);
-
-        if (text.startsWith("Câu ")) {
-            csvRow = cleanCSVRow();
-            csvRow.questionText = text;
-        } else if (text.startsWith("A.")) {
-            csvRow.option1 = text;
-        } else if (text.startsWith("B.")) {
-            csvRow.option2 = text;
-        } else if (text.startsWith("C.")) {
-            csvRow.option3 = text;
-        } else if (text.startsWith("D.")) {
-            csvRow.option4 = text;
-
-            csvRow.correctAnswer = answers[count];
-            count++;
-            finalCSV += Object.values(csvRow).join(csvSeparator) + "\n";
-        }
-    }
-
-    return finalCSV;
-}
-
 function cleanData(data: string): string {
     // remove Câu #: and Câu #. and  Câu # : and Câu # . from final
     let cleanedData = data.replace(/Câu \d+:|Câu \d+\.|Câu \d+ :|Câu \d+ \./g, "");
@@ -118,22 +98,4 @@ function removeExtraSpaces(text: string): string {
     // Remove extra spaces before "." or ":"
     text = text.replace(/\s+([.:])/g, "$1");
     return text;
-}
-
-function downloadCSV(data: string) {
-    // Add header to the CSV file
-    const universalBOM = "\uFEFF";
-    const header = csvFields.join(csvSeparator) + "\n";
-    data = universalBOM + header + data;
-
-    // Download the CSV file
-    const blob = new Blob([data], { type: "text/csv;charset=utf-8" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.setAttribute("id", "download-csv");
-    a.setAttribute("href", url);
-    a.setAttribute("download", outputName);
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
 }

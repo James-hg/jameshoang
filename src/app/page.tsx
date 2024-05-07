@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import mammoth from "mammoth";
-import convertToCSV from "@/server/quizizz-converter";
+import convertToExcel from "@/server/quizizz-converter";
 import { Center, Container, Text, Stack, Box } from "@mantine/core";
 
 const STAGES = {
@@ -53,7 +53,7 @@ const QuizizzPage = () => {
                         let paragraphs = html.split(/<p>|<\/p>/);
                         paragraphs = paragraphs.filter((p) => p.trim().length > 0);
 
-                        convertToCSV(paragraphs, file.name);
+                        convertToExcel(paragraphs, file.name);
                     })
                     .catch(function (error) {
                         console.error(error);
