@@ -122,8 +122,9 @@ function removeExtraSpaces(text: string): string {
 
 function downloadCSV(data: string) {
     // Add header to the CSV file
+    const universalBOM = "\uFEFF";
     const header = csvFields.join(csvSeparator) + "\n";
-    data = header + data;
+    data = universalBOM + header + data;
 
     // Download the CSV file
     const blob = new Blob([data], { type: "text/csv;charset=utf-8" });
