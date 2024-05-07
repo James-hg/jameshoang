@@ -13,7 +13,14 @@ const csvFields = [
 ];
 
 export default function convertToExcel(content: string[], fileName: string) {
+    console.log("Converting to Excel...");
+
     let answers = findCorrectAnswers(content);
+
+    // remove <strong> and </strong> tags
+    content = content.map((para) => para.replace(/<[^>]*>/g, ""));
+
+    console.log(content.join(" "));
 
     const excelData = buildExcelData(content, answers);
 
@@ -25,7 +32,7 @@ export default function convertToExcel(content: string[], fileName: string) {
     XLSX.utils.book_append_sheet(workbook, worksheet, "Questions");
 
     // Save the workbook
-    XLSX.writeFile(workbook, outputName);
+    // XLSX.writeFile(workbook, outputName);
 }
 
 function buildExcelData(paragraphs: string[], answers: string[]): string[][] {

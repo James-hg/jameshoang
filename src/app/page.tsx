@@ -3,24 +3,37 @@ import React, { useState } from "react";
 import mammoth from "mammoth";
 import convertToExcel from "@/server/quizizz-converter";
 import { Center, Container, Text, Stack, Box } from "@mantine/core";
+import * as XLSX from "xlsx";
 
 const STAGES = {
     starting: {
         name: "starting",
-        message: "Upload a DOCX file to get started",
+        message: "Upload a DOCX File to Get Started",
         color: "black",
     },
     convert: {
         name: "convert",
-        message: "Convert and Download CSV",
+        message: "Convert and Download Excel",
         color: "black",
     },
 };
+
+interface QuestionSet {
+    [key: string]: {
+        Question: string;
+        A: string;
+        B: string;
+        C: string;
+        D: string;
+        CorrectAnswer: string;
+    };
+}
 
 const QuizizzPage = () => {
     const [stages, setStages] = useState(STAGES.starting);
     const [file, setFile] = useState<File | null>(null);
     const [html, setHtml] = useState<string>("");
+    const [questionSet, setQuestionSet] = useState<QuestionSet>({});
 
     const onFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         let file = event.target.files?.[0];
@@ -31,6 +44,81 @@ const QuizizzPage = () => {
 
         setFile(file);
         setStages(STAGES.convert);
+
+        // startConvert();
+    };
+
+    const findCorrectAnswers = (text: string, questionSet: QuestionSet) => {
+        const regex = /Câu (.*?)(?=Câu \d+|$)/g;
+
+        let match;
+        while ((match = regex.exec(text)) !== null) {
+            const [entire, questionNumber, allAnswers] = match;
+
+            console.log(entire);
+
+            // find all matches of <b> tag in the entire string
+            const boldMatches = entire.match(/<b>(A|B|C|D)<\/b>/g);
+
+            let qN = questionNumber.split(":")[0];
+
+            if (!boldMatches) {
+                continue;
+            }
+
+            for (let boldMatch of boldMatches) {
+                if (boldMatch.includes("A")) {
+                    questionSet[qN].CorrectAnswer = "1";
+                } else if (boldMatch.includes("B")) {
+                    questionSet[qN].CorrectAnswer = "2";
+                } else if (boldMatch.includes("C")) {
+                    questionSet[qN].CorrectAnswer = "3";
+                } else if (boldMatch.includes("D")) {
+                    questionSet[qN].CorrectAnswer = "4";
+                }
+            }
+        }
+
+        setQuestionSet(questionSet);
+
+        downloadExcel(questionSet);
+    };
+
+    const downloadExcel = (questionSet: QuestionSet) => {
+        let excelData: string[][] = [
+            [
+                "Question",
+                "Type",
+                "Option A",
+                "Option B",
+                "Option C",
+                "Option D",
+                "Correct Answer",
+                "Time",
+                "Image",
+            ],
+        ];
+
+        Object.keys(questionSet).forEach((key) => {
+            let row = ["", "Multiple Choice", "", "", "", "", "", "900", ""];
+            const question = questionSet[key];
+            row[0] = question.Question;
+            row[2] = question.A;
+            row[3] = question.B;
+            row[4] = question.C;
+            row[5] = question.D;
+            row[6] = question.CorrectAnswer;
+
+            excelData.push([...row]);
+        });
+
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.aoa_to_sheet(excelData);
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Questions");
+
+        let fileName = file?.name.replace(".docx", ".xlsx");
+
+        XLSX.writeFile(workbook, fileName || "quizizz.xlsx");
     };
 
     const startConvert = () => {
@@ -43,17 +131,49 @@ const QuizizzPage = () => {
         reader.onload = async (e) => {
             const content = e.target?.result as ArrayBuffer;
 
+            var options = {
+                styleMap: ["b => span", "u => b"],
+            };
+
             try {
                 mammoth
-                    .convertToHtml({ arrayBuffer: content })
+                    .convertToHtml({ arrayBuffer: content }, options)
                     .then(function (result) {
-                        var html = result.value; // The generated HTML
-                        setHtml(html);
-                        var messages = result.messages; // Any messages, such as warnings during conversion
+                        const html = result.value;
+                        const regex =
+                            /Câu (\d+):\s*(.*?)\s*(?:A\.\s*(.*?)\s*B\.\s*(.*?)\s*C\.\s*(.*?)\s*D\.\s*(.*?)(?=Câu \d+|$))/g;
+
                         let paragraphs = html.split(/<p>|<\/p>/);
                         paragraphs = paragraphs.filter((p) => p.trim().length > 0);
 
-                        convertToExcel(paragraphs, file.name);
+                        const rawText = paragraphs.map((p) => p.replace(/<[^>]*>/g, ""));
+
+                        let text = rawText.join(" ");
+
+                        let match;
+                        while ((match = regex.exec(text)) !== null) {
+                            const [, questionNumber, question, optionA, optionB, optionC, optionD] =
+                                match;
+
+                            questionSet[questionNumber] = {
+                                Question: question,
+                                A: optionA,
+                                B: optionB,
+                                C: optionC,
+                                D: optionD,
+                                CorrectAnswer: "0",
+                            };
+                        }
+                        // remove all tags, only keep <b> tags that surrounds "A", "B", "C", "D"
+                        paragraphs = paragraphs.map((p) => p.replace(/<(?!\/?b\b)[^>]*>/g, ""));
+
+                        setQuestionSet(questionSet);
+
+                        findCorrectAnswers(paragraphs.join(" "), questionSet);
+                        setHtml(html);
+
+                        // print the question set
+                        console.log(questionSet);
                     })
                     .catch(function (error) {
                         console.error(error);
@@ -157,9 +277,7 @@ const QuizizzPage = () => {
                 <div
                     id="output"
                     dangerouslySetInnerHTML={{ __html: html }}
-                >
-                    {/* {html} */}
-                </div>
+                ></div>
             </Stack>
         </Container>
     );
