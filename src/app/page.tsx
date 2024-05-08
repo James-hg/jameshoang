@@ -96,7 +96,7 @@ const QuizizzPage = () => {
 
                         const excelData = convertToExcel(
                             paragraphs.join(" "),
-                            file.name.replace("docx", ".xlsx")
+                            file.name.replace("docx", "xlsx")
                         );
                         setExcelData(excelData);
 
