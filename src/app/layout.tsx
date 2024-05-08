@@ -4,6 +4,7 @@ import "@mantine/core/styles.css";
 import "./globals.css";
 import { MantineProvider, createTheme, MantineColorsTuple } from "@mantine/core";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Analytics } from "@vercel/analytics/react";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -40,6 +41,7 @@ export default function RootLayout({
         <html lang="en">
             <body>
                 <MantineProvider theme={theme}>{children}</MantineProvider>
+                <Analytics />
                 <SpeedInsights />
             </body>
         </html>
