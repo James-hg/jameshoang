@@ -1,7 +1,6 @@
 import * as XLSX from "xlsx";
 
 const excelFields = [
-    "ID",
     "Question",
     "Type",
     "Option A",
@@ -15,7 +14,6 @@ const excelFields = [
 
 export interface QuestionSet {
     [key: string]: {
-        id: string;
         Question: string;
         A: string;
         B: string;
@@ -26,12 +24,14 @@ export interface QuestionSet {
 }
 
 // MAIN FUNCTION
-export default function convertToExcel(content: string, fileName: string) {
+export default function convertToExcel(content: string, fileName: string): string[][] {
     const questionSet: QuestionSet = parseInfo(content);
 
     const excelData = buildExcelData(questionSet);
 
     downloadExcel(excelData, fileName);
+
+    return excelData;
 }
 
 // Find the correct question, options and answers from the HTML
@@ -54,7 +54,6 @@ const parseInfo = (text: string) => {
         }
 
         questionSet[counter] = {
-            id: counter.toString(),
             Question: "",
             A: "",
             B: "",
@@ -92,12 +91,12 @@ const parseInfo = (text: string) => {
         const [, question, A, B, C, D] = subMatches;
 
         questionSet[counter.toString()] = {
-            ...questionSet[counter.toString()],
             Question: question.trim(),
             A: A.trim(),
             B: B.trim(),
             C: C.trim(),
             D: D.trim(),
+            CorrectAnswer: questionSet[counter.toString()].CorrectAnswer,
         };
 
         counter++;
@@ -113,26 +112,25 @@ function buildExcelData(questionSet: QuestionSet): string[][] {
 
     // Add the data rows
     Object.keys(questionSet).forEach((key) => {
-        let row = ["", "", "Multiple Choice", "", "", "", "", "", "900", ""];
+        let row = ["", "Multiple Choice", "", "", "", "", "", "900", ""];
         const question = questionSet[key];
-        row[0] = question.id;
-        row[1] = question.Question;
-        row[3] = question.A;
-        row[4] = question.B;
-        row[5] = question.C;
-        row[6] = question.D;
-        row[7] = question.CorrectAnswer;
+        row[0] = question.Question;
+        row[2] = question.A;
+        row[3] = question.B;
+        row[4] = question.C;
+        row[5] = question.D;
+        row[6] = question.CorrectAnswer;
 
         excelData.push([...row]);
     });
 
-    console.table(excelData);
+    // console.table(excelData);
 
     return excelData;
 }
 
 // Create and download the Excel file
-function downloadExcel(excelData: string[][], fileName: string) {
+export function downloadExcel(excelData: string[][], fileName: string) {
     const workbook = XLSX.utils.book_new();
     const worksheet = XLSX.utils.aoa_to_sheet(excelData);
     XLSX.utils.book_append_sheet(workbook, worksheet, "Quizizz Questions");

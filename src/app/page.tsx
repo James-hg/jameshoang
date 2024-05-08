@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import mammoth from "mammoth";
 import convertToExcel from "@/server/quizizz-converter";
-import { Center, Container, Text, Stack, Box, Button, ScrollArea } from "@mantine/core";
+import { Center, Container, Text, Stack, Box, Button, Table, TableData } from "@mantine/core";
 import FileUpload from "@/components/FileUpload";
 
 const STAGES = {
@@ -29,25 +29,26 @@ const QuizizzPage = () => {
     const [html, setHtml] = useState<string>("");
     const [stages, setStages] = useState(STAGES.starting);
     const [message, setMessage] = useState<string>("");
-    const [bold, setBold] = useState<string>("");
+    const [boldMessage, setBoldMessage] = useState<string>("");
     const [button, setButton] = useState<string>("");
+    const [excelData, setExcelData] = useState<string[][]>([]);
 
     useEffect(() => {
         if (stages.name.localeCompare(STAGES.starting.name) == 0) {
             setMessage("");
-            setBold("");
+            setBoldMessage("");
             setButton("");
         } else if (stages.name.localeCompare(STAGES.convert.name) == 0) {
             setMessage(`Successfully Uploaded `);
-            setBold(file?.name + " 📄");
+            setBoldMessage(file?.name + " 📄");
             setButton("Convert and Download Excel File 📊");
         } else if (stages.name.localeCompare(STAGES.restart.name) == 0) {
             setMessage(`Successfully Downloaded `);
-            setBold(file?.name.replace("docx", "xlsx") + " 🎉");
+            setBoldMessage(file?.name.replace("docx", "xlsx") + " 🎉");
             setButton("Convert Another File 🔄");
         } else {
             setMessage("Something went wrong! Please try again. 😥");
-            setBold("");
+            setBoldMessage("");
             setButton("Try Again 🔄");
         }
     }, [stages]);
@@ -92,7 +93,12 @@ const QuizizzPage = () => {
                         paragraphs = paragraphs.filter((p) => !p.startsWith("*"));
 
                         setHtml(html);
-                        convertToExcel(paragraphs.join(" "), file.name.replace("docx", ".xlsx"));
+
+                        const excelData = convertToExcel(
+                            paragraphs.join(" "),
+                            file.name.replace("docx", ".xlsx")
+                        );
+                        setExcelData(excelData);
 
                         setStages(STAGES.restart);
                     })
@@ -110,10 +116,12 @@ const QuizizzPage = () => {
     const handleButtonClick = () => {
         if (stages.name.localeCompare(STAGES.starting.name) == 0) {
             setStages(STAGES.convert);
+            setExcelData([]);
         } else if (stages.name.localeCompare(STAGES.convert.name) == 0) {
             startConvert();
         } else if (stages.name.localeCompare(STAGES.restart.name) == 0) {
             setHtml("");
+            setExcelData([]);
             setStages(STAGES.starting);
         } else {
             window.location.reload();
@@ -132,7 +140,7 @@ const QuizizzPage = () => {
                             span
                             fw={900}
                         >
-                            {bold}
+                            {boldMessage}
                         </Text>
                     </>
 
@@ -147,6 +155,60 @@ const QuizizzPage = () => {
         }
     };
 
+    const OutputTable = () => {
+        if (excelData.length == 0) {
+            return null;
+        }
+
+        // remove 1st row
+        const header = excelData.shift();
+
+        const data: TableData = {
+            head: [
+                "#",
+                "Question",
+                "Option A",
+                "Option B",
+                "Option C",
+                "Option D",
+                "Correct Answer",
+            ],
+            body: excelData.map((row, index) => {
+                return [index + 1, row[0], row[2], row[3], row[4], row[5], row[6]];
+            }),
+        };
+
+        return (
+            <Stack
+                align="center"
+                mt={"lg"}
+                gap={"2rem"}
+            >
+                <Text
+                    variant="gradient"
+                    gradient={{ from: "blue", to: "cyan", deg: 124 }}
+                    size="1.5rem"
+                    fw={900}
+                >
+                    Preview Output
+                </Text>
+
+                <Table.ScrollContainer minWidth={550}>
+                    <Table
+                        stickyHeader
+                        horizontalSpacing="md"
+                        verticalSpacing="sm"
+                        striped
+                        highlightOnHover
+                        withTableBorder
+                        withColumnBorders
+                        data={data}
+                    />
+                </Table.ScrollContainer>
+            </Stack>
+        );
+    };
+
     return (
         <Container
             p={"lg"}
@@ -155,13 +217,15 @@ const QuizizzPage = () => {
             <Stack
                 align="center"
                 justify="center"
-                gap="lg"
+                gap="3rem"
+                m={"sm"}
             >
                 <Text
                     variant="gradient"
                     gradient={{ from: "blue", to: "cyan", deg: 124 }}
                     size="2rem"
                     fw={900}
+                    mt={"lg"}
                 >
                     Quizizz Converter
                 </Text>
@@ -172,11 +236,7 @@ const QuizizzPage = () => {
                     </Center>
                 </Box>
 
-                <div
-                    id="output"
-                    dangerouslySetInnerHTML={{ __html: html }}
-                    style={{ width: "90%", maxWidth: "800px" }}
-                ></div>
+                <OutputTable />
             </Stack>
         </Container>
     );
