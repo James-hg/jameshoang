@@ -13,6 +13,7 @@
         "@mantine/dropzone": "^7.9.0",
         "@mantine/hooks": "^7.9.0",
         "@tabler/icons-react": "^3.3.0",
+        "@vercel/speed-insights": "^1.0.10",
         "@xmldom/xmldom": "^0.8.10",
         "mammoth": "^1.7.2",
         "next": "14.2.3",

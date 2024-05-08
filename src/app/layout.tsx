@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "@mantine/core/styles.css";
 import "./globals.css";
 import { MantineProvider, createTheme, MantineColorsTuple } from "@mantine/core";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -39,6 +40,7 @@ export default function RootLayout({
         <html lang="en">
             <body>
                 <MantineProvider theme={theme}>{children}</MantineProvider>
+                <SpeedInsights />
             </body>
         </html>
     );
