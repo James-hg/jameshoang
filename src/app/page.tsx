@@ -146,7 +146,10 @@ const QuizizzPage = () => {
 
                     <Button
                         onClick={handleButtonClick}
-                        color={stages.color}
+                        gradient={{ from: "blue", to: "cyan", deg: 124 }}
+                        variant="gradient"
+                        mt={"lg"}
+                        size="lg"
                     >
                         {button}
                     </Button>
