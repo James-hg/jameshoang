@@ -1,61 +1,40 @@
-import { Group, Text, rem } from "@mantine/core";
-import { IconUpload, IconPhoto, IconX } from "@tabler/icons-react";
-import { Dropzone, DropzoneProps, MS_WORD_MIME_TYPE } from "@mantine/dropzone";
+import React from "react";
 
-export function FileUpload() {
+const FileUpload = ({
+    onFileUpload,
+}: {
+    onFileUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
+}) => {
     return (
-        <Dropzone
-            onDrop={(file) => console.log("dropped file", file)}
-            onReject={(files) => console.log("rejected files", files)}
-            maxSize={5 * 1024 ** 2}
-            accept={MS_WORD_MIME_TYPE}
+        <label
+            id="uploadFile1"
+            className="font-semibold text-base rounded w-full h-52 flex flex-col items-center justify-center cursor-pointer border-2 border-gray-300 border-dashed mx-auto font-[sans-serif]"
         >
-            <Group
-                justify="center"
-                gap="xl"
-                mih={220}
-                style={{ pointerEvents: "none" }}
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="w-11 mb-2 fill-gray-500"
+                viewBox="0 0 32 32"
             >
-                <Dropzone.Accept>
-                    <IconUpload
-                        style={{
-                            width: rem(52),
-                            height: rem(52),
-                            color: "var(--mantine-color-blue-6)",
-                        }}
-                        stroke={1.5}
-                    />
-                </Dropzone.Accept>
-                <Dropzone.Reject>
-                    <IconX
-                        style={{
-                            width: rem(52),
-                            height: rem(52),
-                            color: "var(--mantine-color-red-6)",
-                        }}
-                        stroke={1.5}
-                    />
-                </Dropzone.Reject>
-                <Dropzone.Idle>
-                    <IconPhoto
-                        style={{
-                            width: rem(52),
-                            height: rem(52),
-                            color: "var(--mantine-color-dimmed)",
-                        }}
-                        stroke={1.5}
-                    />
-                </Dropzone.Idle>
-
-                <div>
-                    <Text
-                        size="xl"
-                        inline
-                    >
-                        Drag DOCX file here or click to select file
-                    </Text>
-                </div>
-            </Group>
-        </Dropzone>
+                <path
+                    d="M23.75 11.044a7.99 7.99 0 0 0-15.5-.009A8 8 0 0 0 9 27h3a1 1 0 0 0 0-2H9a6 6 0 0 1-.035-12 1.038 1.038 0 0 0 1.1-.854 5.991 5.991 0 0 1 11.862 0A1.08 1.08 0 0 0 23 13a6 6 0 0 1 0 12h-3a1 1 0 0 0 0 2h3a8 8 0 0 0 .75-15.956z"
+                    data-original="#000000"
+                />
+                <path
+                    d="M20.293 19.707a1 1 0 0 0 1.414-1.414l-5-5a1 1 0 0 0-1.414 0l-5 5a1 1 0 0 0 1.414 1.414L15 16.414V29a1 1 0 0 0 2 0V16.414z"
+                    data-original="#000000"
+                />
+            </svg>
+            Upload file
+            <input
+                type="file"
+                name="docx-reader"
+                className="hidden"
+                onChange={onFileUpload}
+                accept=".docx"
+            />
+            <p className="text-xs font-medium text-gray-400 mt-2">Only DOCX is supported</p>
+        </label>
     );
-}
+};
+
+export default FileUpload;

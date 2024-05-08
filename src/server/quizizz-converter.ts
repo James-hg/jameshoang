@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 
-const csvFields = [
+const excelFields = [
+    "ID",
     "Question",
     "Type",
     "Option A",
@@ -8,101 +9,133 @@ const csvFields = [
     "Option C",
     "Option D",
     "Correct Answer",
-    "Points",
     "Time",
+    "Image",
 ];
 
-export default function convertToExcel(content: string[], fileName: string) {
-    console.log("Converting to Excel...");
-
-    let answers = findCorrectAnswers(content);
-
-    // remove <strong> and </strong> tags
-    content = content.map((para) => para.replace(/<[^>]*>/g, ""));
-
-    console.log(content.join(" "));
-
-    const excelData = buildExcelData(content, answers);
-
-    const outputName = fileName.replace(".docx", ".xlsx");
-
-    // Create a new workbook with a worksheet
-    const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.aoa_to_sheet(excelData);
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Questions");
-
-    // Save the workbook
-    // XLSX.writeFile(workbook, outputName);
+export interface QuestionSet {
+    [key: string]: {
+        id: string;
+        Question: string;
+        A: string;
+        B: string;
+        C: string;
+        D: string;
+        CorrectAnswer: string;
+    };
 }
 
-function buildExcelData(paragraphs: string[], answers: string[]): string[][] {
-    let excelData: string[][] = [[...csvFields]];
+// MAIN FUNCTION
+export default function convertToExcel(content: string, fileName: string) {
+    const questionSet: QuestionSet = parseInfo(content);
 
-    let csvRow: string[] = ["", "Multiple Choice", "", "", "", "", "", "900", ""];
+    const excelData = buildExcelData(questionSet);
 
-    let count = 0;
-    for (let paragraph of paragraphs) {
-        // remove the <strong> tag
-        let text = paragraph.replace(/<[^>]*>/g, "");
-        text = removeExtraSpaces(text);
+    downloadExcel(excelData, fileName);
+}
 
-        if (text.startsWith("Câu ")) {
-            csvRow[0] = text;
-        } else if (text.startsWith("A.")) {
-            csvRow[2] = text;
-        } else if (text.startsWith("B.")) {
-            csvRow[3] = text;
-        } else if (text.startsWith("C.")) {
-            csvRow[4] = text;
-        } else if (text.startsWith("D.")) {
-            csvRow[5] = text;
+// Find the correct question, options and answers from the HTML
+const parseInfo = (text: string) => {
+    let questionSet: QuestionSet = {};
 
-            csvRow[6] = answers[count];
-            count++;
-            excelData.push([...csvRow]);
-            csvRow = ["", "Multiple Choice", "", "", "", "", "", "900", ""];
+    let counter = 0;
+
+    // Find question sets, which are wrapped around by two "Câu"'s or the end of the text.
+    const regex = /Câu (\d+):(.*?)(?=Câu \d+|$)/g;
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+        const [entire, questionNumber, rest] = match;
+
+        // find all matches of <b> tag in the entire string
+        const boldMatches = entire.match(/<b>(A|B|C|D)<\/b>/g);
+        if (!boldMatches) {
+            console.log("Error parsing bold matches: ", entire);
+            continue;
         }
+
+        questionSet[counter] = {
+            id: counter.toString(),
+            Question: "",
+            A: "",
+            B: "",
+            C: "",
+            D: "",
+            CorrectAnswer: "0",
+        };
+
+        // Find the correct answer
+        for (let boldMatch of boldMatches) {
+            if (boldMatch.includes("A")) {
+                questionSet[counter.toString()].CorrectAnswer = "1";
+            } else if (boldMatch.includes("B")) {
+                questionSet[counter.toString()].CorrectAnswer = "2";
+            } else if (boldMatch.includes("C")) {
+                questionSet[counter.toString()].CorrectAnswer = "3";
+            } else if (boldMatch.includes("D")) {
+                questionSet[counter.toString()].CorrectAnswer = "4";
+            }
+        }
+
+        // Find the question and options
+        const clean = rest.replace(/<[^>]*>/g, "").replace(/\u00A0/g, ""); // Remove all HTML tags and non-breaking spaces
+
+        // const subRegex = /^(.*?)(?=A\.)A\.(.*?)B\.(.*?)C\.(.*?)D\.( .*?)$/g;
+        const subRegex =
+            /^(.*?)(?=[ABCD]\.)A\.(.*?)(?=[BCD]\.)B\.(.*?)(?=[CD]\.)C\.(.*?)(?=[D]\.)D\.(.*?)$/g;
+        const subMatches = subRegex.exec(clean);
+
+        if (!subMatches) {
+            console.log("Error parsing question: ", clean);
+            continue;
+        }
+
+        const [, question, A, B, C, D] = subMatches;
+
+        questionSet[counter.toString()] = {
+            ...questionSet[counter.toString()],
+            Question: question.trim(),
+            A: A.trim(),
+            B: B.trim(),
+            C: C.trim(),
+            D: D.trim(),
+        };
+
+        counter++;
     }
+
+    return questionSet;
+};
+
+// Build the Excel data from the question set
+function buildExcelData(questionSet: QuestionSet): string[][] {
+    // Add the header row
+    let excelData: string[][] = [excelFields];
+
+    // Add the data rows
+    Object.keys(questionSet).forEach((key) => {
+        let row = ["", "", "Multiple Choice", "", "", "", "", "", "900", ""];
+        const question = questionSet[key];
+        row[0] = question.id;
+        row[1] = question.Question;
+        row[3] = question.A;
+        row[4] = question.B;
+        row[5] = question.C;
+        row[6] = question.D;
+        row[7] = question.CorrectAnswer;
+
+        excelData.push([...row]);
+    });
+
+    console.table(excelData);
 
     return excelData;
 }
 
-// Find the correct answers in the paragraphs, which are bolded.
-function findCorrectAnswers(paragraphs: string[]): string[] {
-    let answers = [""];
+// Create and download the Excel file
+function downloadExcel(excelData: string[][], fileName: string) {
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.aoa_to_sheet(excelData);
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Quizizz Questions");
 
-    for (let para of paragraphs) {
-        if (para.startsWith("<strong>")) {
-            let innerText = para.replace(/<[^>]*>/g, "");
-            if (innerText.startsWith("A.")) {
-                answers.push("1");
-            } else if (innerText.startsWith("B.")) {
-                answers.push("2");
-            } else if (innerText.startsWith("C.")) {
-                answers.push("3");
-            } else if (innerText.startsWith("D.")) {
-                answers.push("4");
-            }
-        }
-    }
-
-    return answers;
-}
-
-function cleanData(data: string): string {
-    // remove Câu #: and Câu #. and  Câu # : and Câu # . from final
-    let cleanedData = data.replace(/Câu \d+:|Câu \d+\.|Câu \d+ :|Câu \d+ \./g, "");
-
-    // remove A. B. C. D.
-    cleanedData = cleanedData.replace(/A\.|B\.|C\.|D\./g, "");
-
-    return cleanedData;
-}
-
-function removeExtraSpaces(text: string): string {
-    // Remove double spaces
-    text = text.replace(/\s+/g, " ");
-    // Remove extra spaces before "." or ":"
-    text = text.replace(/\s+([.:])/g, "$1");
-    return text;
+    XLSX.writeFile(workbook, fileName);
 }
