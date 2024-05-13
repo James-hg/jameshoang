@@ -1,15 +1,15 @@
 import * as XLSX from "xlsx";
 
 const excelFields = [
-    "Question",
-    "Type",
+    "Question Text",
+    "Question Type",
     "Option A",
     "Option B",
     "Option C",
     "Option D",
     "Correct Answer",
-    "Time",
-    "Image",
+    "Time in seconds",
+    "Image Link",
 ];
 
 export interface QuestionSet {
